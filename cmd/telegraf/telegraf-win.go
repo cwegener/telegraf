@@ -104,6 +104,13 @@ func init() {
 }
 
 func main() {
+	flag.Usage = usageExit
+	flag.Parse()
+
+	if flag.NFlag() == 0 {
+		usageExit()
+	}
+
 	// install service
 	if *fServiceInstall {
 		if err := winsvc.InstallService(appPath, *fServiceName, *fServiceDesc); err != nil {
@@ -143,16 +150,16 @@ func main() {
 	// run as service
 	if !winsvc.InServiceMode() {
 		log.Println("main:", "runService")
-		if err := winsvc.RunAsService(*fServiceName, run, stop, false); err != nil {
+		if err := winsvc.RunAsService(*fServiceName, start, stop, false); err != nil {
 			log.Fatalf("svc.Run: %v\n", err)
 		}
 		return
 	}
 
-	run()
+	start()
 }
 
-func run() {
+func start() {
 	reload := make(chan bool, 1)
 	reload <- true
 	for <-reload {
