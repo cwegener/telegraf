@@ -276,6 +276,8 @@ func start() {
 			log.Fatal(err)
 		}
 
+		shutdown := make(chan struct{})
+
 		log.Printf("Starting Telegraf (version %s)\n", Version)
 		log.Printf("Loaded outputs: %s", strings.Join(c.OutputNames(), " "))
 		log.Printf("Loaded inputs: %s", strings.Join(c.InputNames(), " "))
@@ -292,6 +294,7 @@ func start() {
 			f.Close()
 		}
 
+		ag.Run(shutdown)
 	}
 }
 
