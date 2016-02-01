@@ -1,4 +1,4 @@
-// +build !windows
+// +build windows
 package main
 
 import (
@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+
+	"github.com/chai2010/winsvc"
 
 	"github.com/influxdata/telegraf/agent"
 	"github.com/influxdata/telegraf/internal/config"
@@ -34,6 +36,13 @@ var fOutputFilters = flag.String("output-filter", "",
 	"filter the outputs to enable, separator is :")
 var fUsage = flag.String("usage", "",
 	"print usage for a plugin, ie, 'telegraf -usage mysql'")
+var fServiceName = flag.String("service-name", "telegraf-winsvc", "Set service name")
+var fServiceDesc = flag.String("service-desc", "Telegraf windows service", "Set service description")
+
+var fServiceInstall = flag.Bool("service-install", false, "Install service")
+var fServiceUninstall = flag.Bool("service-remove", false, "Remove service")
+var fServiceStart = flag.Bool("service-start", false, "Start service")
+var fServiceStop = flag.Bool("service-stop", false, "Stop service")
 
 var fInputFiltersLegacy = flag.String("filter", "",
 	"filter the inputs to enable, separator is :")
@@ -42,9 +51,10 @@ var fOutputFiltersLegacy = flag.String("outputfilter", "",
 var fConfigDirectoryLegacy = flag.String("configdirectory", "",
 	"directory containing additional *.conf files")
 
-// Telegraf version
-//	-ldflags "-X main.Version=`git describe --always --tags`"
+// Version ...
 var Version string
+
+var appPath string
 
 const usage = `Telegraf, The plugin-driven server agent for collecting and reporting metrics.
 
@@ -83,7 +93,62 @@ Examples:
   telegraf -config telegraf.conf -input-filter cpu:mem -output-filter influxdb
 `
 
+func init() {
+	// change to current dir
+	var err error
+	if appPath, err = winsvc.GetAppPath(); err != nil {
+		log.Fatal(err)
+	}
+	if err := os.Chdir(filepath.Dir(appPath)); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func main() {
+	// install service
+	if *fServiceInstall {
+		if err := winsvc.InstallService(appPath, *fServiceName, *fServiceDesc); err != nil {
+			log.Fatalf("installService(%s, %s): %v\n", *fServiceName, *fServiceDesc, err)
+		}
+		fmt.Printf("Done\n")
+		return
+	}
+
+	// remove service
+	if *fServiceUninstall {
+		if err := winsvc.RemoveService(*fServiceName); err != nil {
+			log.Fatalln("removeService:", err)
+		}
+		fmt.Printf("Done\n")
+		return
+	}
+
+	// start service
+	if *fServiceStart {
+		if err := winsvc.StartService(*fServiceName); err != nil {
+			log.Fatalln("startService:", err)
+		}
+		fmt.Printf("Done\n")
+		return
+	}
+
+	// stop service
+	if *fServiceStop {
+		if err := winsvc.StopService(*fServiceName); err != nil {
+			log.Fatalln("stopService:", err)
+		}
+		fmt.Printf("Done\n")
+		return
+	}
+
+	// run as service
+	if !winsvc.InServiceMode() {
+		log.Println("main:", "runService")
+		if err := winsvc.RunAsService(*fServiceName, StartServer, StopServer, false); err != nil {
+			log.Fatalf("svc.Run: %v\n", err)
+		}
+		return
+	}
 	reload := make(chan bool, 1)
 	reload <- true
 	for <-reload {
