@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
+	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/chai2010/winsvc"
 
@@ -144,11 +143,16 @@ func main() {
 	// run as service
 	if !winsvc.InServiceMode() {
 		log.Println("main:", "runService")
-		if err := winsvc.RunAsService(*fServiceName, StartServer, StopServer, false); err != nil {
+		if err := winsvc.RunAsService(*fServiceName, run, stop, false); err != nil {
 			log.Fatalf("svc.Run: %v\n", err)
 		}
 		return
 	}
+
+	run()
+}
+
+func run() {
 	reload := make(chan bool, 1)
 	reload <- true
 	for <-reload {
@@ -265,22 +269,6 @@ func main() {
 			log.Fatal(err)
 		}
 
-		shutdown := make(chan struct{})
-		signals := make(chan os.Signal)
-		signal.Notify(signals, os.Interrupt, syscall.SIGHUP)
-		go func() {
-			sig := <-signals
-			if sig == os.Interrupt {
-				close(shutdown)
-			}
-			if sig == syscall.SIGHUP {
-				log.Printf("Reloading Telegraf config\n")
-				<-reload
-				reload <- true
-				close(shutdown)
-			}
-		}()
-
 		log.Printf("Starting Telegraf (version %s)\n", Version)
 		log.Printf("Loaded outputs: %s", strings.Join(c.OutputNames(), " "))
 		log.Printf("Loaded inputs: %s", strings.Join(c.InputNames(), " "))
@@ -297,8 +285,12 @@ func main() {
 			f.Close()
 		}
 
-		ag.Run(shutdown)
 	}
+}
+
+func stop() {
+
+	log.Printf("Hard Shutdown")
 }
 
 func usageExit() {
