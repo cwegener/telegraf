@@ -114,14 +114,14 @@ func main() {
 
 	// install service
 	if *fServiceInstall {
-		if *fConfig != "" {
+		if *fConfig == "" {
+			fmt.Printf("-config parameter missing\n")
+		} else {
 			if err := winsvc.InstallService(appPath+" -config "+*fConfig, *fServiceName, *fServiceDesc); err != nil {
 				log.Fatalf("installService(%s, %s): %v\n", *fServiceName, *fServiceDesc, err)
 			}
 			fmt.Printf("Done\n")
 			return
-		} else {
-			fmt.Printf("-config parameter missing\n")
 		}
 	}
 
