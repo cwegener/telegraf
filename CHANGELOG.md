@@ -1,6 +1,22 @@
-## v0.10.2 [unreleased]
+## v0.10.3 [unreleased]
 
 ### Release Notes
+
+### Features
+- [#652](https://github.com/influxdata/telegraf/pull/652): CouchDB Input Plugin
+
+### Bugfixes
+
+## v0.10.2 [2016-02-04]
+
+### Release Notes
+- Statsd timing measurements are now aggregated into a single measurement with
+fields.
+- Graphite output now inserts tags into the bucket in alphabetical order.
+- Normalized TLS/SSL support for output plugins: MQTT, AMQP, Kafka
+- `verify_ssl` config option was removed from Kafka because it was actually
+doing the opposite of what it claimed to do (yikes). It's been replaced by
+`insecure_skip_verify`
 
 ### Features
 - [#575](https://github.com/influxdata/telegraf/pull/575): Support for collecting Windows Performance Counters. Thanks @TheFlyingCorpse!
@@ -9,6 +25,7 @@
 - [#601](https://github.com/influxdata/telegraf/issues/601): Warn when overwriting cached metrics.
 - [#614](https://github.com/influxdata/telegraf/pull/614): PowerDNS input plugin. Thanks @Kasen!
 - [#617](https://github.com/influxdata/telegraf/pull/617): exec plugin: parse influx line protocol in addition to JSON.
+- [#628](https://github.com/influxdata/telegraf/pull/628): Windows perf counters: pre-vista support
 
 ### Bugfixes
 - [#595](https://github.com/influxdata/telegraf/issues/595): graphite output should include tags to separate duplicate measurements.
@@ -16,6 +33,7 @@
 - [#600](https://github.com/influxdata/telegraf/issues/600): datadog measurement/field name parsing is wrong.
 - [#602](https://github.com/influxdata/telegraf/issues/602): Fix statsd field name templating.
 - [#612](https://github.com/influxdata/telegraf/pull/612): Docker input panic fix if stats received are nil.
+- [#634](https://github.com/influxdata/telegraf/pull/634): Properly set host headers in httpjson. Thanks @reginaldosousa!
 
 ## v0.10.1 [2016-01-27]
 
