@@ -158,8 +158,9 @@ Currently implemented sources:
 * couchdb
 * disque
 * docker
+* dovecot
 * elasticsearch
-* exec (generic JSON-emitting executable plugin)
+* exec (generic executable plugin, support JSON, influx and graphite)
 * haproxy
 * httpjson (generic JSON-emitting http service plugin)
 * influxdb
@@ -202,7 +203,9 @@ Currently implemented sources:
 Telegraf can also collect metrics via the following service plugins:
 
 * statsd
+* mqtt_consumer
 * kafka_consumer
+* nats_consumer
 * github_webhooks
 
 We'll be adding support for many more over the coming months. Read on if you

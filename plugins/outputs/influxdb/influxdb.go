@@ -28,19 +28,28 @@ type InfluxDB struct {
 	Timeout    internal.Duration
 	UDPPayload int `toml:"udp_payload"`
 
+	// Path to CA file
+	SSLCA string `toml:"ssl_ca"`
+	// Path to host cert file
+	SSLCert string `toml:"ssl_cert"`
+	// Path to cert key file
+	SSLKey string `toml:"ssl_key"`
+	// Use SSL but skip chain & host verification
+	InsecureSkipVerify bool
+
 	conns []client.Client
 }
 
 var sampleConfig = `
   ### The full HTTP or UDP endpoint URL for your InfluxDB instance.
-  ### Multiple urls can be specified but it is assumed that they are part of the same
-  ### cluster, this means that only ONE of the urls will be written to each interval.
+  ### Multiple urls can be specified as part of the same cluster,
+  ### this means that only ONE of the urls will be written to each interval.
   # urls = ["udp://localhost:8089"] # UDP endpoint example
   urls = ["http://localhost:8086"] # required
   ### The target database for metrics (telegraf will create it if not exists)
   database = "telegraf" # required
   ### Precision of writes, valid values are n, u, ms, s, m, and h
-  ### note: using second precision greatly helps InfluxDB compression
+  ### note: using "s" precision greatly improves InfluxDB compression
   precision = "s"
 
   ### Connection timeout (for the connection with InfluxDB), formatted as a string.
@@ -52,6 +61,13 @@ var sampleConfig = `
   # user_agent = "telegraf"
   ### Set UDP payload size, defaults to InfluxDB UDP Client default (512 bytes)
   # udp_payload = 512
+
+  ### Optional SSL Config
+  # ssl_ca = "/etc/telegraf/ca.pem"
+  # ssl_cert = "/etc/telegraf/cert.pem"
+  # ssl_key = "/etc/telegraf/key.pem"
+  ### Use SSL but skip chain & host verification
+  # insecure_skip_verify = false
 `
 
 func (i *InfluxDB) Connect() error {
@@ -64,6 +80,12 @@ func (i *InfluxDB) Connect() error {
 	// This could eventually be removed in favor of specifying the urls as a list
 	if i.URL != "" {
 		urls = append(urls, i.URL)
+	}
+
+	tlsCfg, err := internal.GetTLSConfig(
+		i.SSLCert, i.SSLKey, i.SSLCA, i.InsecureSkipVerify)
+	if err != nil {
+		return err
 	}
 
 	var conns []client.Client
@@ -94,6 +116,7 @@ func (i *InfluxDB) Connect() error {
 				Password:  i.Password,
 				UserAgent: i.UserAgent,
 				Timeout:   i.Timeout.Duration,
+				TLSConfig: tlsCfg,
 			})
 			if err != nil {
 				return err
