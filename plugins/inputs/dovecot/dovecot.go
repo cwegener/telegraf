@@ -24,15 +24,17 @@ func (d *Dovecot) Description() string {
 }
 
 var sampleConfig = `
-  ### specify dovecot servers via an address:port list
-  ###  e.g.
-  ###    localhost:24242
-  ###
-  ### If no servers are specified, then localhost is used as the host.
+  ## specify dovecot servers via an address:port list
+  ##  e.g.
+  ##    localhost:24242
+  ##
+  ## If no servers are specified, then localhost is used as the host.
   servers = ["localhost:24242"]
-  ### Only collect metrics for these domains, collect all if empty
+  ## Only collect metrics for these domains, collect all if empty
   domains = []
 `
+
+var defaultTimeout = time.Second * time.Duration(5)
 
 func (d *Dovecot) SampleConfig() string { return sampleConfig }
 
@@ -74,11 +76,14 @@ func (d *Dovecot) gatherServer(addr string, acc telegraf.Accumulator, doms map[s
 		return fmt.Errorf("Error: %s on url %s\n", err, addr)
 	}
 
-	c, err := net.Dial("tcp", addr)
+	c, err := net.DialTimeout("tcp", addr, defaultTimeout)
 	if err != nil {
 		return fmt.Errorf("Unable to connect to dovecot server '%s': %s", addr, err)
 	}
 	defer c.Close()
+
+	// Extend connection
+	c.SetDeadline(time.Now().Add(defaultTimeout))
 
 	c.Write([]byte("EXPORT\tdomain\n\n"))
 	var buf bytes.Buffer

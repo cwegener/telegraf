@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Schema:
@@ -75,8 +76,8 @@ func (*CouchDB) Description() string {
 
 func (*CouchDB) SampleConfig() string {
 	return `
-  ### Works with CouchDB stats endpoints out of the box
-  ### Multiple HOSTs from which to read CouchDB stats:
+  ## Works with CouchDB stats endpoints out of the box
+  ## Multiple HOSTs from which to read CouchDB stats:
   hosts = ["http://localhost:8086/_stats"]
 `
 }
@@ -112,9 +113,18 @@ func (c *CouchDB) Gather(accumulator telegraf.Accumulator) error {
 
 }
 
+var tr = &http.Transport{
+	ResponseHeaderTimeout: time.Duration(3 * time.Second),
+}
+
+var client = &http.Client{
+	Transport: tr,
+	Timeout:   time.Duration(4 * time.Second),
+}
+
 func (c *CouchDB) fetchAndInsertData(accumulator telegraf.Accumulator, host string) error {
 
-	response, error := http.Get(host)
+	response, error := client.Get(host)
 	if error != nil {
 		return error
 	}

@@ -1,7 +1,6 @@
 package kafka_consumer
 
 import (
-	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -15,15 +14,18 @@ import (
 )
 
 type Kafka struct {
-	ConsumerGroup  string
-	Topics         []string
-	ZookeeperPeers []string
-	Consumer       *consumergroup.ConsumerGroup
-	MetricBuffer   int
+	ConsumerGroup   string
+	Topics          []string
+	ZookeeperPeers  []string
+	ZookeeperChroot string
+	Consumer        *consumergroup.ConsumerGroup
+
+	// Legacy metric buffer support
+	MetricBuffer int
 	// TODO remove PointBuffer, legacy support
 	PointBuffer int
-	Offset      string
 
+	Offset string
 	parser parsers.Parser
 
 	sync.Mutex
@@ -32,9 +34,10 @@ type Kafka struct {
 	in <-chan *sarama.ConsumerMessage
 	// channel for all kafka consumer errors
 	errs <-chan *sarama.ConsumerError
-	// channel for all incoming parsed kafka metrics
-	metricC chan telegraf.Metric
-	done    chan struct{}
+	done chan struct{}
+
+	// keep the accumulator internally:
+	acc telegraf.Accumulator
 
 	// doNotCommitMsgs tells the parser not to call CommitUpTo on the consumer
 	// this is mostly for test purposes, but there may be a use-case for it later.
@@ -42,21 +45,21 @@ type Kafka struct {
 }
 
 var sampleConfig = `
-  ### topic(s) to consume
+  ## topic(s) to consume
   topics = ["telegraf"]
-  ### an array of Zookeeper connection strings
+  ## an array of Zookeeper connection strings
   zookeeper_peers = ["localhost:2181"]
-  ### the name of the consumer group
+  ## Zookeeper Chroot
+  zookeeper_chroot = "/"
+  ## the name of the consumer group
   consumer_group = "telegraf_metrics_consumers"
-  ### Maximum number of metrics to buffer between collection intervals
-  metric_buffer = 100000
-  ### Offset (must be either "oldest" or "newest")
+  ## Offset (must be either "oldest" or "newest")
   offset = "oldest"
 
-  ### Data format to consume. This can be "json", "influx" or "graphite"
-  ### Each data format has it's own unique set of configuration options, read
-  ### more about them here:
-  ### https://github.com/influxdata/telegraf/blob/master/DATA_FORMATS_INPUT.md
+  ## Data format to consume. This can be "json", "influx" or "graphite"
+  ## Each data format has it's own unique set of configuration options, read
+  ## more about them here:
+  ## https://github.com/influxdata/telegraf/blob/master/docs/DATA_FORMATS_INPUT.md
   data_format = "influx"
 `
 
@@ -72,12 +75,15 @@ func (k *Kafka) SetParser(parser parsers.Parser) {
 	k.parser = parser
 }
 
-func (k *Kafka) Start() error {
+func (k *Kafka) Start(acc telegraf.Accumulator) error {
 	k.Lock()
 	defer k.Unlock()
 	var consumerErr error
 
+	k.acc = acc
+
 	config := consumergroup.NewConfig()
+	config.Zookeeper.Chroot = k.ZookeeperChroot
 	switch strings.ToLower(k.Offset) {
 	case "oldest", "":
 		config.Offsets.Initial = sarama.OffsetOldest
@@ -106,13 +112,6 @@ func (k *Kafka) Start() error {
 	}
 
 	k.done = make(chan struct{})
-	if k.PointBuffer == 0 && k.MetricBuffer == 0 {
-		k.MetricBuffer = 100000
-	} else if k.PointBuffer > 0 {
-		// Legacy support of PointBuffer field TODO remove
-		k.MetricBuffer = k.PointBuffer
-	}
-	k.metricC = make(chan telegraf.Metric, k.MetricBuffer)
 
 	// Start the kafka message reader
 	go k.receiver()
@@ -138,14 +137,7 @@ func (k *Kafka) receiver() {
 			}
 
 			for _, metric := range metrics {
-				fmt.Println(string(metric.Name()))
-				select {
-				case k.metricC <- metric:
-					continue
-				default:
-					log.Printf("Kafka Consumer buffer is full, dropping a metric." +
-						" You may want to increase the metric_buffer setting")
-				}
+				k.acc.AddFields(metric.Name(), metric.Fields(), metric.Tags(), metric.Time())
 			}
 
 			if !k.doNotCommitMsgs {
@@ -169,13 +161,6 @@ func (k *Kafka) Stop() {
 }
 
 func (k *Kafka) Gather(acc telegraf.Accumulator) error {
-	k.Lock()
-	defer k.Unlock()
-	nmetrics := len(k.metricC)
-	for i := 0; i < nmetrics; i++ {
-		metric := <-k.metricC
-		acc.AddFields(metric.Name(), metric.Fields(), metric.Tags(), metric.Time())
-	}
 	return nil
 }
 

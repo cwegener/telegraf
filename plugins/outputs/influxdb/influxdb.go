@@ -18,15 +18,16 @@ import (
 
 type InfluxDB struct {
 	// URL is only for backwards compatability
-	URL        string
-	URLs       []string `toml:"urls"`
-	Username   string
-	Password   string
-	Database   string
-	UserAgent  string
-	Precision  string
-	Timeout    internal.Duration
-	UDPPayload int `toml:"udp_payload"`
+	URL             string
+	URLs            []string `toml:"urls"`
+	Username        string
+	Password        string
+	Database        string
+	UserAgent       string
+	Precision       string
+	RetentionPolicy string
+	Timeout         internal.Duration
+	UDPPayload      int `toml:"udp_payload"`
 
 	// Path to CA file
 	SSLCA string `toml:"ssl_ca"`
@@ -41,32 +42,34 @@ type InfluxDB struct {
 }
 
 var sampleConfig = `
-  ### The full HTTP or UDP endpoint URL for your InfluxDB instance.
-  ### Multiple urls can be specified as part of the same cluster,
-  ### this means that only ONE of the urls will be written to each interval.
+  ## The full HTTP or UDP endpoint URL for your InfluxDB instance.
+  ## Multiple urls can be specified as part of the same cluster,
+  ## this means that only ONE of the urls will be written to each interval.
   # urls = ["udp://localhost:8089"] # UDP endpoint example
   urls = ["http://localhost:8086"] # required
-  ### The target database for metrics (telegraf will create it if not exists)
+  ## The target database for metrics (telegraf will create it if not exists).
   database = "telegraf" # required
-  ### Precision of writes, valid values are n, u, ms, s, m, and h
-  ### note: using "s" precision greatly improves InfluxDB compression
+  ## Retention policy to write to.
+  retention_policy = "default"
+  ## Precision of writes, valid values are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+  ## note: using "s" precision greatly improves InfluxDB compression.
   precision = "s"
 
-  ### Connection timeout (for the connection with InfluxDB), formatted as a string.
-  ### If not provided, will default to 0 (no timeout)
-  # timeout = "5s"
+  ## Write timeout (for the InfluxDB client), formatted as a string.
+  ## If not provided, will default to 5s. 0s means no timeout (not recommended).
+  timeout = "5s"
   # username = "telegraf"
   # password = "metricsmetricsmetricsmetrics"
-  ### Set the user agent for HTTP POSTs (can be useful for log differentiation)
+  ## Set the user agent for HTTP POSTs (can be useful for log differentiation)
   # user_agent = "telegraf"
-  ### Set UDP payload size, defaults to InfluxDB UDP Client default (512 bytes)
+  ## Set UDP payload size, defaults to InfluxDB UDP Client default (512 bytes)
   # udp_payload = 512
 
-  ### Optional SSL Config
+  ## Optional SSL Config
   # ssl_ca = "/etc/telegraf/ca.pem"
   # ssl_cert = "/etc/telegraf/cert.pem"
   # ssl_key = "/etc/telegraf/key.pem"
-  ### Use SSL but skip chain & host verification
+  ## Use SSL but skip chain & host verification
   # insecure_skip_verify = false
 `
 
@@ -129,6 +132,7 @@ func (i *InfluxDB) Connect() error {
 
 			if e != nil {
 				log.Println("Database creation failed: " + e.Error())
+				continue
 			}
 
 			conns = append(conns, c)
@@ -156,17 +160,27 @@ func (i *InfluxDB) Description() string {
 // Choose a random server in the cluster to write to until a successful write
 // occurs, logging each unsuccessful. If all servers fail, return error.
 func (i *InfluxDB) Write(metrics []telegraf.Metric) error {
-	bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  i.Database,
-		Precision: i.Precision,
+	if len(i.conns) == 0 {
+		err := i.Connect()
+		if err != nil {
+			return err
+		}
+	}
+	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
+		Database:        i.Database,
+		Precision:       i.Precision,
+		RetentionPolicy: i.RetentionPolicy,
 	})
+	if err != nil {
+		return err
+	}
 
 	for _, metric := range metrics {
 		bp.AddPoint(metric.Point())
 	}
 
 	// This will get set to nil if a successful write occurs
-	err := errors.New("Could not write to any InfluxDB server in cluster")
+	err = errors.New("Could not write to any InfluxDB server in cluster")
 
 	p := rand.Perm(len(i.conns))
 	for _, n := range p {
@@ -182,6 +196,8 @@ func (i *InfluxDB) Write(metrics []telegraf.Metric) error {
 
 func init() {
 	outputs.Add("influxdb", func() telegraf.Output {
-		return &InfluxDB{}
+		return &InfluxDB{
+			Timeout: internal.Duration{Duration: time.Second * 5},
+		}
 	})
 }

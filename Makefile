@@ -14,9 +14,7 @@ windows: prepare-windows build-windows
 
 # Only run the build (no dependency grabbing)
 build:
-	go build -o telegraf -ldflags \
-		"-X main.Version=$(VERSION)" \
-		./cmd/telegraf/telegraf.go
+	go install -ldflags "-X main.Version=$(VERSION)" ./...
 
 build-windows:
 	go build -o telegraf.exe -ldflags \
@@ -24,27 +22,17 @@ build-windows:
 		./cmd/telegraf/telegraf.go
 
 build-for-docker:
-	CGO_ENABLED=0 GOOS=linux go build -o telegraf -ldflags \
-					"-X main.Version=$(VERSION)" \
+	CGO_ENABLED=0 GOOS=linux go build -installsuffix cgo -o telegraf -ldflags \
+					"-s -X main.Version=$(VERSION)" \
 					./cmd/telegraf/telegraf.go
 
 # Build with race detector
 dev: prepare
-	go build -race -o telegraf -ldflags \
-		"-X main.Version=$(VERSION)" \
-		./cmd/telegraf/telegraf.go
+	go build -race -ldflags "-X main.Version=$(VERSION)" ./...
 
-# Build linux 64-bit, 32-bit and arm architectures
-build-linux-bins: prepare
-	GOARCH=amd64 GOOS=linux go build -o telegraf_linux_amd64 \
-								-ldflags "-X main.Version=$(VERSION)" \
-								./cmd/telegraf/telegraf.go
-	GOARCH=386 GOOS=linux go build -o telegraf_linux_386 \
-								-ldflags "-X main.Version=$(VERSION)" \
-								./cmd/telegraf/telegraf.go
-	GOARCH=arm GOOS=linux go build -o telegraf_linux_arm \
-								-ldflags "-X main.Version=$(VERSION)" \
-								./cmd/telegraf/telegraf.go
+# run package script
+package:
+	./scripts/build.py --package --version="$(VERSION)" --platform=linux --arch=all --upload
 
 # Get dependencies and use gdm to checkout changesets
 prepare:
@@ -104,14 +92,17 @@ docker-kill:
 	-docker rm nsq aerospike redis opentsdb rabbitmq postgres memcached mysql kafka mqtt riemann snmp
 
 # Run full unit tests using docker containers (includes setup and teardown)
-test: docker-kill docker-run
+test: vet docker-kill docker-run
 	# Sleeping for kafka leadership election, TSDB setup, etc.
 	sleep 60
 	# SUCCESS, running tests
 	go test -race ./...
 
 # Run "short" unit tests
-test-short:
+test-short: vet
 	go test -short ./...
 
-.PHONY: test
+vet:
+	go vet ./...
+
+.PHONY: test test-short vet build default

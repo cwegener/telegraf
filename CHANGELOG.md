@@ -1,4 +1,65 @@
-## v0.10.3 [unreleased]
+## v0.11.0 [unreleased]
+
+### Release Notes
+
+### Features
+- [#692](https://github.com/influxdata/telegraf/pull/770): Support InfluxDB retention policies
+- [#771](https://github.com/influxdata/telegraf/pull/771): Default timeouts for input plugns. Thanks @PierreF!
+- [#758](https://github.com/influxdata/telegraf/pull/758): UDP Listener input plugin, thanks @whatyouhide!
+- [#769](https://github.com/influxdata/telegraf/issues/769): httpjson plugin: allow specifying SSL configuration.
+- [#735](https://github.com/influxdata/telegraf/pull/735): SNMP Table feature. Thanks @titilambert!
+- [#754](https://github.com/influxdata/telegraf/pull/754): docker plugin: adding `docker info` metrics to output. Thanks @titilambert!
+- [#788](https://github.com/influxdata/telegraf/pull/788): -input-list and -output-list command-line options. Thanks @ebookbug!
+- [#778](https://github.com/influxdata/telegraf/pull/778): Adding a TCP input listener.
+- [#797](https://github.com/influxdata/telegraf/issues/797): Provide option for persistent MQTT consumer client sessions.
+- [#799](https://github.com/influxdata/telegraf/pull/799): Add number of threads for procstat input plugin. Thanks @titilambert!
+- [#776](https://github.com/influxdata/telegraf/pull/776): Add Zookeeper chroot option to kafka_consumer. Thanks @prune998!
+- [#811](https://github.com/influxdata/telegraf/pull/811): Add processes plugin for classifying total procs on system. Thanks @titilambert!
+- [#235](https://github.com/influxdata/telegraf/issues/235): Add number of users to the `system` input plugin.
+- [#826](https://github.com/influxdata/telegraf/pull/826): "kernel" linux plugin for /proc/stat metrics (context switches, interrupts, etc.)
+
+### Bugfixes
+- [#748](https://github.com/influxdata/telegraf/issues/748): Fix sensor plugin split on ":"
+- [#722](https://github.com/influxdata/telegraf/pull/722): Librato output plugin fixes. Thanks @chrusty!
+- [#745](https://github.com/influxdata/telegraf/issues/745): Fix Telegraf toml parse panic on large config files. Thanks @titilambert!
+- [#781](https://github.com/influxdata/telegraf/pull/781): Fix mqtt_consumer username not being set. Thanks @chaton78!
+- [#786](https://github.com/influxdata/telegraf/pull/786): Fix mqtt output username not being set. Thanks @msangoi!
+- [#773](https://github.com/influxdata/telegraf/issues/773): Fix duplicate measurements in snmp plugin. Thanks @titilambert!
+- [#708](https://github.com/influxdata/telegraf/issues/708): packaging: build ARM package
+- [#713](https://github.com/influxdata/telegraf/issues/713): packaging: insecure permissions error on log directory
+- [#816](https://github.com/influxdata/telegraf/issues/816): Fix phpfpm panic if fcgi endpoint unreachable.
+- [#828](https://github.com/influxdata/telegraf/issues/828): fix net_response plugin overwriting host tag.
+
+## v0.10.4.1
+
+### Release Notes
+- Bug in the build script broke deb and rpm packages.
+
+### Bugfixes
+- [#750](https://github.com/influxdata/telegraf/issues/750): deb package broken
+- [#752](https://github.com/influxdata/telegraf/issues/752): rpm package broken
+
+## v0.10.4 [2016-02-24]
+
+### Release Notes
+- The pass/drop parameters have been renamed to fielddrop/fieldpass parameters,
+to more accurately indicate their purpose.
+- There are also now namedrop/namepass parameters for passing/dropping based
+on the metric _name_.
+- Experimental windows builds now available.
+
+### Features
+- [#727](https://github.com/influxdata/telegraf/pull/727): riak input, thanks @jcoene!
+- [#694](https://github.com/influxdata/telegraf/pull/694): DNS Query input, thanks @mjasion!
+- [#724](https://github.com/influxdata/telegraf/pull/724): username matching for procstat input, thanks @zorel!
+- [#736](https://github.com/influxdata/telegraf/pull/736): Ignore dummy filesystems from disk plugin. Thanks @PierreF!
+- [#737](https://github.com/influxdata/telegraf/pull/737): Support multiple fields for statsd input. Thanks @mattheath!
+
+### Bugfixes
+- [#701](https://github.com/influxdata/telegraf/pull/701): output write count shouldnt print in quiet mode.
+- [#746](https://github.com/influxdata/telegraf/pull/746): httpjson plugin: Fix HTTP GET parameters.
+
+## v0.10.3 [2016-02-18]
 
 ### Release Notes
 - Users of the `exec` and `kafka_consumer` (and the new `nats_consumer`
@@ -7,8 +68,14 @@ format that they would like to parse. Currently supports: "json", "influx", and
 "graphite"
 - Users of message broker and file output plugins can now choose what data format
 they would like to output. Currently supports: "influx" and "graphite"
-- More info on parsing arbitrary data formats can be found
-[here](https://github.com/influxdata/telegraf/blob/master/DATA_FORMATS_INPUT.md)
+- More info on parsing _incoming_ data formats can be found
+[here](https://github.com/influxdata/telegraf/blob/master/docs/DATA_FORMATS_INPUT.md)
+- More info on serializing _outgoing_ data formats can be found
+[here](https://github.com/influxdata/telegraf/blob/master/docs/DATA_FORMATS_OUTPUT.md)
+- Telegraf now has an option `flush_buffer_when_full` that will flush the
+metric buffer whenever it fills up for each output, rather than dropping
+points and only flushing on a set time interval. This will default to `true`
+and is in the `[agent]` config section.
 
 ### Features
 - [#652](https://github.com/influxdata/telegraf/pull/652): CouchDB Input Plugin. Thanks @codehate!
@@ -19,11 +86,17 @@ they would like to output. Currently supports: "influx" and "graphite"
 - [#683](https://github.com/influxdata/telegraf/pull/683): PostGRES input plugin: add pg_stat_bgwriter. Thanks @menardorama!
 - [#679](https://github.com/influxdata/telegraf/pull/679): File/stdout output plugin.
 - [#679](https://github.com/influxdata/telegraf/pull/679): Support for arbitrary output data formats.
+- [#695](https://github.com/influxdata/telegraf/pull/695): raindrops input plugin. Thanks @burdandrei!
+- [#650](https://github.com/influxdata/telegraf/pull/650): net_response input plugin. Thanks @titilambert!
+- [#699](https://github.com/influxdata/telegraf/pull/699): Flush based on buffer size rather than time.
+- [#682](https://github.com/influxdata/telegraf/pull/682): Mesos input plugin. Thanks @tripledes!
 
 ### Bugfixes
 - [#443](https://github.com/influxdata/telegraf/issues/443): Fix Ping command timeout parameter on Linux.
 - [#662](https://github.com/influxdata/telegraf/pull/667): Change `[tags]` to `[global_tags]` to fix multiple-plugin tags bug.
 - [#642](https://github.com/influxdata/telegraf/issues/642): Riemann output plugin issues.
+- [#394](https://github.com/influxdata/telegraf/issues/394): Support HTTP POST. Thanks @gabelev!
+- [#715](https://github.com/influxdata/telegraf/pull/715): Fix influxdb precision config panic. Thanks @netixen!
 
 ## v0.10.2 [2016-02-04]
 
